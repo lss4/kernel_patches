@@ -1,22 +1,10 @@
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -133,7 +133,7 @@
- 
- config WERROR
- 	bool "Compile the kernel with warnings as errors"
--	default y
-+	default n
- 	help
- 	  A kernel build should not cause any compiler warnings, and this
- 	  enables the '-Werror' flag to enforce that rule by default.
 --- a/Makefile
 +++ b/Makefile
-@@ -809,7 +809,7 @@ stackp-flags-$(CONFIG_STACKPROTECTOR_STRONG)      := -fstack-protector-strong
+@@ -776,6 +776,7 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning,frame-address,)
+ KBUILD_CFLAGS	+= $(call cc-disable-warning, format-truncation)
+ KBUILD_CFLAGS	+= $(call cc-disable-warning, format-overflow)
+ KBUILD_CFLAGS	+= $(call cc-disable-warning, address-of-packed-member)
++KBUILD_CFLAGS	+= $(call cc-disable-warning, frame-larger-than)
  
- KBUILD_CFLAGS += $(stackp-flags-y)
- 
--KBUILD_CFLAGS-$(CONFIG_WERROR) += -Werror
-+KBUILD_CFLAGS-$(CONFIG_WERROR) += #-Werror
- KBUILD_CFLAGS += $(KBUILD_CFLAGS-y)
- 
- ifdef CONFIG_CC_IS_CLANG
+ ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
+ KBUILD_CFLAGS += -O2
