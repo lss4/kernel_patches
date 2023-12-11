@@ -1,0 +1,12 @@
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -133,7 +133,7 @@
+ 
+ config WERROR
+ 	bool "Compile the kernel with warnings as errors"
+-	default y
++	default n
+ 	help
+ 	  A kernel build should not cause any compiler warnings, and this
+ 	  enables the '-Werror' flag to enforce that rule by default.
+
