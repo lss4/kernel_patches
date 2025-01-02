@@ -1,7 +1,8 @@
-From 3ae0b244a1160c1935a3336dc014c93cb1c9462d Mon Sep 17 00:00:00 2001
+From be1edc5e30f04c8a07c439e1c77fedf0a31c9a0a Mon Sep 17 00:00:00 2001
 From: DataEraserC <102341238+DataEraserC@users.noreply.github.com>
-Date: Thu, 2 Jan 2025 19:03:20 +0800
-Subject: [PATCH 2/2] BACKPORT: cred: add get_cred_rcu() torvalds/linux@97d0fb2
+Date: Thu, 2 Jan 2025 19:58:18 +0800
+Subject: [PATCH 2/2] BACKPORT: cred: add get_cred_rcu()
+ https://github.com/torvalds/linux/commit/97d0fb239c041f5f99655af74812c3ab75cc4346
  upstream
 
 Sometimes we want to opportunistically get a
@@ -27,7 +28,7 @@ Signed-off-by: backslashxx <118538522+backslashxx@users.noreply.github.com>
  2 files changed, 12 insertions(+), 1 deletion(-)
 
 diff --git a/include/linux/cred.h b/include/linux/cred.h
-index 00ed00d9a71..d0436352dad 100644
+index 69da4674ea0..781178aaaf5 100644
 --- a/include/linux/cred.h
 +++ b/include/linux/cred.h
 @@ -256,6 +256,17 @@ static inline const struct cred *get_cred(const struct cred *cred)
@@ -49,7 +50,7 @@ index 00ed00d9a71..d0436352dad 100644
   * put_cred - Release a reference to a set of credentials
   * @cred: The credentials to release
 diff --git a/kernel/cred.c b/kernel/cred.c
-index 8c58f0f63af..1b83801fb68 100644
+index 8c58f0f63af..cf72f2567b3 100644
 --- a/kernel/cred.c
 +++ b/kernel/cred.c
 @@ -197,7 +197,7 @@ const struct cred *get_task_cred(struct task_struct *task)
@@ -57,7 +58,7 @@ index 8c58f0f63af..1b83801fb68 100644
  		cred = __task_cred((task));
  		BUG_ON(!cred);
 -	} while (!atomic_long_inc_not_zero(&((struct cred *)cred)->usage));
-+	} while (!get_cred_rcu(cred)));
++	} while (!get_cred_rcu(cred));
  
  	rcu_read_unlock();
  	return cred;

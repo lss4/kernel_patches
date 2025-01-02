@@ -1,6 +1,6 @@
-From 8a7e55110e876bc2e1e841cad4613dde9ade8fc4 Mon Sep 17 00:00:00 2001
+From 72874531e65f98d216db5949615f647abf864ebf Mon Sep 17 00:00:00 2001
 From: DataEraserC <102341238+DataEraserC@users.noreply.github.com>
-Date: Thu, 2 Jan 2025 19:01:37 +0800
+Date: Thu, 2 Jan 2025 19:57:01 +0800
 Subject: [PATCH 1/2] Reapply: "cred: switch to using atomic_long_t" commit
  f8fa5d76925991976b3e7076f9d1052515ec1fca upstream.
 
@@ -20,18 +20,18 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  2 files changed, 36 insertions(+), 36 deletions(-)
 
 diff --git a/include/linux/cred.h b/include/linux/cred.h
-index 1dc351d8548..00ed00d9a71 100644
+index 1dc351d8548..69da4674ea0 100644
 --- a/include/linux/cred.h
 +++ b/include/linux/cred.h
-@@ -28,7 +28,7 @@ struct inode;
-  * COW Supplementary groups list
+@@ -114,7 +114,7 @@ static inline int groups_search(const struct group_info *group_info, kgid_t grp)
+  * same context as task->real_cred.
   */
- struct group_info {
+ struct cred {
 -	atomic_t	usage;
 +	atomic_long_t	usage;
- 	int		ngroups;
- 	kgid_t		gid[0];
- } __randomize_layout;
+ #ifdef CONFIG_DEBUG_CREDENTIALS
+ 	atomic_t	subscribers;	/* number of processes subscribed */
+ 	void		*put_addr;
 @@ -231,7 +231,7 @@ static inline bool cap_ambient_invariant_ok(const struct cred *cred)
   */
  static inline struct cred *get_new_cred(struct cred *cred)
