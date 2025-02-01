@@ -786,7 +786,7 @@ index 74aeabbf0ea4..d6a1eab90e37 100644
 +			}
 +			seq_printf(m, "inotify wd:%x ino:%lx sdev:%x mask:%x ignored_mask:0 ",
 +			   inode_mark->wd, path.dentry->d_inode->i_ino, path.dentry->d_inode->i_sb->s_dev,
-+			   inotify_mark_user_mask(mark));
++			   (mark->mask & (IN_ALL_EVENTS | IN_ONESHOT | IN_EXCL_UNLINK)));
 +			show_mark_fhandle(m, path.dentry->d_inode);
 +			seq_putc(m, '\n');
 +			iput(inode);
