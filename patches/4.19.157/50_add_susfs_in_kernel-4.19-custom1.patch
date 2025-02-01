@@ -798,9 +798,16 @@ index 74aeabbf0ea4..d6a1eab90e37 100644
 +		}
 +out_seq_printf:
 +#endif
- 		seq_printf(m, "inotify wd:%x ino:%lx sdev:%x mask:%x ignored_mask:0 ",
+ 		/*
+ 		 * IN_ALL_EVENTS represents all of the mask bits
+ 		 * that we expose to userspace.  There is at
+ 		 * least one bit (FS_EVENT_ON_CHILD) which is
+ 		 * used only internally to the kernel.
+ 		 */
+ 		u32 mask = mark->mask & IN_ALL_EVENTS;
+ 		seq_printf(m, "inotify wd:%x ino:%lx sdev:%x mask:%x ignored_mask:%x ",
  			   inode_mark->wd, inode->i_ino, inode->i_sb->s_dev,
- 			   inotify_mark_user_mask(mark));
+ 			   mask, mark->ignored_mask);
 diff --git a/fs/overlayfs/inode.c b/fs/overlayfs/inode.c
 index 7f3787a6b445..47f0a148857b 100644
 --- a/fs/overlayfs/inode.c
@@ -1093,9 +1100,9 @@ index 3c5ce8a0ddc9..dd82d352cb17 100644
 +		return 0;
 +	}
 +#endif
- 	buf->result = verify_dirent_name(name, namlen);
- 	if (buf->result < 0)
- 		return buf->result;
+ 	d_ino = ino;
+ 	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {
+ 		buf->result = -EOVERFLOW;
 @@ -476,6 +497,11 @@ static int compat_filldir(struct dir_context *ctx, const char *name, int namlen,
  	buf->error = -EINVAL;	/* only used if we fail.. */
  	if (reclen > buf->count)
