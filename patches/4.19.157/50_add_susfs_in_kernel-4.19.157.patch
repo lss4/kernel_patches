@@ -956,7 +956,7 @@ index bd9a5958d84c..e06ae3ee90e2 100644
  	/* task is frozen/stopped (used by the cgroup freezer) */
  	ANDROID_KABI_USE(1, unsigned frozen:1);
  
-+	ANDROID_KABI_RESERVE(1);
++
 +	ANDROID_KABI_RESERVE(2);
 +	ANDROID_KABI_RESERVE(3);
 +	ANDROID_KABI_RESERVE(4);
