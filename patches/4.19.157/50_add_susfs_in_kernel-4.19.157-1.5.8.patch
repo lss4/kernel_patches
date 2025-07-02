@@ -854,7 +854,7 @@ index e876362ac9c3..ea0497ff4242 100644
 +}
 +#endif
 diff --git a/fs/notify/fdinfo.c b/fs/notify/fdinfo.c
-index 86fcf5814279..d3e98452f83f 100644
+index 86fcf5814279..cebc2c1c8bc3 100644
 --- a/fs/notify/fdinfo.c
 +++ b/fs/notify/fdinfo.c
 @@ -13,6 +13,9 @@
@@ -907,7 +907,7 @@ index 86fcf5814279..d3e98452f83f 100644
  {
  	struct inotify_inode_mark *inode_mark;
  	struct inode *inode;
-@@ -83,6 +101,36 @@ static void inotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
+@@ -83,6 +101,39 @@ static void inotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
  	inode_mark = container_of(mark, struct inotify_inode_mark, fsn_mark);
  	inode = igrab(fsnotify_conn_inode(mark->connector));
  	if (inode) {
@@ -929,7 +929,7 @@ index 86fcf5814279..d3e98452f83f 100644
 +			}
 +			seq_printf(m, "inotify wd:%x ino:%lx sdev:%x mask:%x ignored_mask:0 ",
 +			   inode_mark->wd, path.dentry->d_inode->i_ino, path.dentry->d_inode->i_sb->s_dev,
-+			   inotify_mark_user_mask(mark));
++			   (mark->mask & (IN_ALL_EVENTS | IN_ONESHOT | IN_EXCL_UNLINK)));
 +			show_mark_fhandle(m, path.dentry->d_inode);
 +			seq_putc(m, '\n');
 +			iput(inode);
@@ -940,10 +940,21 @@ index 86fcf5814279..d3e98452f83f 100644
 +			kfree(pathname);
 +		}
 +out_seq_printf:
-+#endif
++		seq_printf(m, "inotify wd:%x ino:%lx sdev:%x mask:%x ignored_mask:%x ",
++			   inode_mark->wd, inode->i_ino, inode->i_sb->s_dev,
++			   (mark->mask & IN_ALL_EVENTS), mark->ignored_mask);
++#else
  		/*
  		 * IN_ALL_EVENTS represents all of the mask bits
  		 * that we expose to userspace.  There is at
+@@ -93,6 +144,7 @@ static void inotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
+ 		seq_printf(m, "inotify wd:%x ino:%lx sdev:%x mask:%x ignored_mask:%x ",
+ 			   inode_mark->wd, inode->i_ino, inode->i_sb->s_dev,
+ 			   mask, mark->ignored_mask);
++#endif
+ 		show_mark_fhandle(m, inode);
+ 		seq_putc(m, '\n');
+ 		iput(inode);
 diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
 index fa762c5fbcb2..c981cd698fce 100644
 --- a/fs/proc/cmdline.c
