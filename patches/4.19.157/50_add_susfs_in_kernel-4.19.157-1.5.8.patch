@@ -11,7 +11,7 @@ index e5271ed04362..192a0674610f 100644
  obj-$(CONFIG_PROC_FS) += proc_namespace.o
  obj-$(CONFIG_FS_HPB) += hpb_supp.o
 diff --git a/fs/namei.c b/fs/namei.c
-index 6e83cd855473..ee2932513a23 100644
+index 6e83cd855473..579e85cd87a9 100644
 --- a/fs/namei.c
 +++ b/fs/namei.c
 @@ -40,6 +40,9 @@
@@ -64,6 +64,9 @@ index 6e83cd855473..ee2932513a23 100644
  static struct dentry *__lookup_hash(const struct qstr *name,
  		struct dentry *base, unsigned int flags)
  {
+-	struct dentry *dentry = lookup_dcache(name, base, flags);
+ 	struct dentry *old;
+ 	struct inode *dir = base->d_inode;
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +	struct dentry *dentry;
 +	bool found_sus_path = false;
@@ -89,10 +92,8 @@ index 6e83cd855473..ee2932513a23 100644
 +	dentry = lookup_dcache(name, base, flags);
 +retry:
 +#else
- 	struct dentry *dentry = lookup_dcache(name, base, flags);
++	struct dentry *dentry = lookup_dcache(name, base, flags);
 +#endif
- 	struct dentry *old;
- 	struct inode *dir = base->d_inode;
  
  	if (dentry)
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
@@ -102,10 +103,10 @@ index 6e83cd855473..ee2932513a23 100644
 +			found_sus_path = true;
 +			goto retry;
 +		}
- 		return dentry;
++		return dentry;
 +	}
 +#else
-+		return dentry;
+ 		return dentry;
 +#endif
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
