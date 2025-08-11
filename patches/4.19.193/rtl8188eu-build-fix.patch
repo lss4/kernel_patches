@@ -1,0 +1,10 @@
+diff --git a/drivers/staging/rtl8188eu/Makefile b/drivers/staging/rtl8188eu/Makefile
+index 4e606b03ec03..43963be2f921 100644
+--- a/drivers/staging/rtl8188eu/Makefile
++++ b/drivers/staging/rtl8188eu/Makefile
+@@ -54,4 +54,4 @@ r8188eu-y :=				\
+ 
+ obj-$(CONFIG_R8188EU)	:= r8188eu.o
+ 
+-ccflags-y += -I$(srctree)/$(src)/include
++ccflags-y += -I$(srctree)/$(src)/include -Wno-error=logical-not-parentheses -Wno-error=parentheses-equality -Wno-error=enum-conversion
