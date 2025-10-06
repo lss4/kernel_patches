@@ -1275,7 +1275,7 @@ index 81882a13212d..598130aeb5ea 100644
  	show_fd_locks(m, file, files);
  	if (seq_has_overflowed(m))
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 54ed171c783f..5f06f7f08c5b 100644
+index 54ed171c783f..ef09b6c40e79 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
 @@ -21,6 +21,9 @@
@@ -1288,7 +1288,18 @@ index 54ed171c783f..5f06f7f08c5b 100644
  
  #include <asm/elf.h>
  #include <asm/tlb.h>
-@@ -362,8 +365,18 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
+@@ -348,6 +351,10 @@ static void show_vma_header_prefix(struct seq_file *m,
+ 	seq_putc(m, ' ');
+ }
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
++extern void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned long *out_ino);
++#endif
++
+ static void
+ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
+ {
+@@ -362,8 +369,18 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
  
  	if (file) {
  		struct inode *inode = file_inode(vma->vm_file);
