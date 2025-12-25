@@ -1,25 +1,8 @@
-From c4c72ca619c0d49fb99bef4854f8ae5dbd0f36d2 Mon Sep 17 00:00:00 2001
-From: NotZeetaa <rodrigo2005contente@gmail.com>
-Date: Wed, 26 Jun 2024 15:05:56 +0000
-Subject: [PATCH] fs: Add KernelSU hooks
-
-Change-Id: I6180099e3a2d6b50f1c776c222c0f4b758833672
-Signed-off-by: vullk4n <vulkanops@gmail.com>
----
- drivers/input/input.c |  9 +++++++++
- fs/devpts/inode.c     |  6 ++++++
- fs/exec.c             | 13 +++++++++++++
- fs/namespace.c        | 34 ++++++++++++++++++++++++++++++++++
- fs/open.c             | 10 +++++++++-
- fs/read_write.c       | 12 +++++++++++-
- fs/stat.c             |  9 ++++++++-
- 7 files changed, 90 insertions(+), 3 deletions(-)
-
 diff --git a/drivers/input/input.c b/drivers/input/input.c
-index 57072d5a6ae0..53e54a3c8a8b 100644
+index 70ffffea3e58..77ce41e55b95 100644
 --- a/drivers/input/input.c
 +++ b/drivers/input/input.c
-@@ -366,10 +366,19 @@ static int input_get_disposition(struct input_dev *dev,
+@@ -378,10 +378,19 @@ static int input_get_disposition(struct input_dev *dev,
  	return disposition;
  }
  
@@ -64,10 +47,10 @@ index 553a3f3300ae..0daf8068586d 100644
  		return NULL;
  	return dentry->d_fsdata;
 diff --git a/fs/exec.c b/fs/exec.c
-index 82d552981719..7be54dbefae3 100644
+index eef84ebcac53..2d7030d9936f 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
-@@ -1888,11 +1888,24 @@ static int __do_execve_file(int fd, struct filename *filename,
+@@ -1895,11 +1895,24 @@ static int __do_execve_file(int fd, struct filename *filename,
  	return retval;
  }
  
@@ -93,13 +76,21 @@ index 82d552981719..7be54dbefae3 100644
  }
  
 diff --git a/fs/namespace.c b/fs/namespace.c
-index e876362ac9c3..721cafda674a 100644
+index 4a69b910710f..fb45b7a265a1 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
-@@ -1636,6 +1636,40 @@ static inline bool may_mandlock(void)
- 	return capable(CAP_SYS_ADMIN);
+@@ -1635,6 +1635,48 @@ static int do_umount(struct mount *mnt, int flags)
+ 	return retval;
  }
  
++/*
++ * Is the caller allowed to modify his namespace?
++ */
++static inline bool may_mount(void)
++{
++	return ns_capable(current->nsproxy->mnt_ns->user_ns, CAP_SYS_ADMIN);
++}
++
 +static int can_umount(const struct path *path, int flags)
 +{
 +	struct mount *mnt = real_mount(path->mnt);
@@ -135,13 +126,28 @@ index e876362ac9c3..721cafda674a 100644
 +}
 +
  /*
-  * Now umount can handle mount points as well as block devices.
-  * This is important for filesystems which use unnamed block devices.
+  * __detach_mounts - lazily unmount all mounts on the specified dentry
+  *
+@@ -1671,14 +1713,6 @@ void __detach_mounts(struct dentry *dentry)
+ 	namespace_unlock();
+ }
+ 
+-/*
+- * Is the caller allowed to modify his namespace?
+- */
+-static inline bool may_mount(void)
+-{
+-	return ns_capable(current->nsproxy->mnt_ns->user_ns, CAP_SYS_ADMIN);
+-}
+-
+ #ifdef	CONFIG_MANDATORY_FILE_LOCKING
+ static bool may_mandlock(void)
+ {
 diff --git a/fs/open.c b/fs/open.c
-index 9de5687643e4..908078f1bc83 100644
+index accdc1b2ce9a..422f9bedb64a 100644
 --- a/fs/open.c
 +++ b/fs/open.c
-@@ -364,6 +364,10 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
+@@ -349,6 +349,10 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
  	return ksys_fallocate(fd, mode, offset, len);
  }
  
@@ -152,7 +158,7 @@ index 9de5687643e4..908078f1bc83 100644
  /*
   * access() needs to use the real uid/gid, not the effective uid/gid.
   * We do this by temporarily clearing all FS-related capabilities and
-@@ -378,7 +382,11 @@ long do_faccessat(int dfd, const char __user *filename, int mode)
+@@ -363,7 +367,11 @@ long do_faccessat(int dfd, const char __user *filename, int mode)
  	struct vfsmount *mnt;
  	int res;
  	unsigned int lookup_flags = LOOKUP_FOLLOW;
@@ -166,7 +172,7 @@ index 9de5687643e4..908078f1bc83 100644
  		return -EINVAL;
  
 diff --git a/fs/read_write.c b/fs/read_write.c
-index 650fc7e0f3a6..a88258852f95 100644
+index ec2d20ddd766..8e9a915ea4c5 100644
 --- a/fs/read_write.c
 +++ b/fs/read_write.c
 @@ -434,10 +434,20 @@ ssize_t kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
@@ -192,10 +198,10 @@ index 650fc7e0f3a6..a88258852f95 100644
  		return -EBADF;
  	if (!(file->f_mode & FMODE_CAN_READ))
 diff --git a/fs/stat.c b/fs/stat.c
-index a92095f7e111..ff34d4fde290 100644
+index 376543199b5a..a02b0894faa1 100644
 --- a/fs/stat.c
 +++ b/fs/stat.c
-@@ -158,6 +158,9 @@ int vfs_statx_fd(unsigned int fd, struct kstat *stat,
+@@ -148,6 +148,9 @@ int vfs_statx_fd(unsigned int fd, struct kstat *stat,
  }
  EXPORT_SYMBOL(vfs_statx_fd);
  
@@ -205,7 +211,7 @@ index a92095f7e111..ff34d4fde290 100644
  /**
   * vfs_statx - Get basic and extra attributes by filename
   * @dfd: A file descriptor representing the base dir for a relative filename
-@@ -179,7 +182,11 @@ int vfs_statx(int dfd, const char __user *filename, int flags,
+@@ -169,7 +172,11 @@ int vfs_statx(int dfd, const char __user *filename, int flags,
  	struct path path;
  	int error = -EINVAL;
  	unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;
@@ -218,6 +224,3 @@ index a92095f7e111..ff34d4fde290 100644
  	if ((flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
  		       AT_EMPTY_PATH | KSTAT_QUERY_FLAGS)) != 0)
  		return -EINVAL;
--- 
-2.48.1
-
