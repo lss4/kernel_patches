@@ -1,18 +1,17 @@
-From be236ff8743300ef3789e4b17c18328cd930c1a0 Mon Sep 17 00:00:00 2001
+From f30e94b9df9519f15a9a9d88105e83d1e6a84cba Mon Sep 17 00:00:00 2001
 From: Sacabambaspis <102341238+DataEraserC@users.noreply.github.com>
-Date: Sat, 7 Sep 2024 11:34:12 +0000
-Subject: [PATCH] update dtc to v1.6.1 Co-authored-by: github @0warning0error
+Date: Mon, 19 Feb 2024 12:56:05 +0000
+Subject: [PATCH] update dtc to v1.6.1 Copy from:
+ 0warning0error/android_kernel_motorola_sm8250
 
 ---
  scripts/dtc/Makefile                 |   2 +
  scripts/dtc/checks.c                 | 597 +++++++++++++++++++++------
  scripts/dtc/data.c                   |  27 +-
- scripts/dtc/dt_to_config             |   0
  scripts/dtc/dtc-lexer.l              |  25 +-
  scripts/dtc/dtc-parser.y             | 117 ++++--
  scripts/dtc/dtc.c                    |  45 +-
  scripts/dtc/dtc.h                    | 121 ++++--
- scripts/dtc/dtx_diff                 |   8 +-
  scripts/dtc/flattree.c               |  46 +--
  scripts/dtc/fstree.c                 |  24 +-
  scripts/dtc/libfdt/fdt.c             | 235 +++++++----
@@ -32,14 +31,10 @@ Subject: [PATCH] update dtc to v1.6.1 Co-authored-by: github @0warning0error
  scripts/dtc/srcpos.c                 | 169 ++++++--
  scripts/dtc/srcpos.h                 |  30 +-
  scripts/dtc/treesource.c             | 283 +++++++------
- scripts/dtc/update-dtc-source.sh     |   0
  scripts/dtc/util.c                   | 117 +++---
  scripts/dtc/util.h                   |  51 +--
  scripts/dtc/version_gen.h            |   2 +-
- 32 files changed, 2377 insertions(+), 1476 deletions(-)
- mode change 100755 => 100644 scripts/dtc/dt_to_config
- mode change 100755 => 100644 scripts/dtc/dtx_diff
- mode change 100755 => 100644 scripts/dtc/update-dtc-source.sh
+ 29 files changed, 2375 insertions(+), 1470 deletions(-)
 
 diff --git a/scripts/dtc/Makefile b/scripts/dtc/Makefile
 index 28631ed596ab..d6412b1a6788 100644
@@ -1141,9 +1136,6 @@ index aa37a16c8891..14734233ad8b 100644
  			chunksize = 4096;
  		else
  			chunksize = maxlen - d.len;
-diff --git a/scripts/dtc/dt_to_config b/scripts/dtc/dt_to_config
-old mode 100755
-new mode 100644
 diff --git a/scripts/dtc/dtc-lexer.l b/scripts/dtc/dtc-lexer.l
 index d3694d6cf202..de60a70b6bdb 100644
 --- a/scripts/dtc/dtc-lexer.l
@@ -1838,27 +1830,6 @@ index 6d667701ab6a..0a1f54991026 100644
  /* FS trees */
  
  struct dt_info *dt_from_fs(const char *dirname);
-diff --git a/scripts/dtc/dtx_diff b/scripts/dtc/dtx_diff
-old mode 100755
-new mode 100644
-index 8c4fbad2055e..1046bdc0719d
---- a/scripts/dtc/dtx_diff
-+++ b/scripts/dtc/dtx_diff
-@@ -56,12 +56,8 @@ Otherwise DTx is treated as a dts source file (aka .dts).
-    or '/include/' to be processed.
- 
-    If DTx_1 and DTx_2 are in different architectures, then this script
--   may not work since \${ARCH} is part of the include path.  Two possible
--   workarounds:
--
--      `basename $0` \\
--          <(ARCH=arch_of_dtx_1 `basename $0` DTx_1) \\
--          <(ARCH=arch_of_dtx_2 `basename $0` DTx_2)
-+   may not work since \${ARCH} is part of the include path.  The following
-+   workaround can be used:
- 
-       `basename $0` ARCH=arch_of_dtx_1 DTx_1 >tmp_dtx_1.dts
-       `basename $0` ARCH=arch_of_dtx_2 DTx_2 >tmp_dtx_2.dts
 diff --git a/scripts/dtc/flattree.c b/scripts/dtc/flattree.c
 index 8d268fb785db..95e43d32c3e6 100644
 --- a/scripts/dtc/flattree.c
@@ -6342,9 +6313,6 @@ index 2461a3d068a0..33fedee82d58 100644
  	write_tree_source_node(f, dti->dt, 0);
  }
 -
-diff --git a/scripts/dtc/update-dtc-source.sh b/scripts/dtc/update-dtc-source.sh
-old mode 100755
-new mode 100644
 diff --git a/scripts/dtc/util.c b/scripts/dtc/util.c
 index 9953c32a0244..507f0120cd13 100644
 --- a/scripts/dtc/util.c
@@ -6680,5 +6648,5 @@ index b00f14ff7a17..99614ec1a289 100644
 -#define DTC_VERSION "DTC 1.4.6-g84e414b0"
 +#define DTC_VERSION "DTC 1.6.1-gabbd523b"
 -- 
-2.46.0
+2.48.1
 
