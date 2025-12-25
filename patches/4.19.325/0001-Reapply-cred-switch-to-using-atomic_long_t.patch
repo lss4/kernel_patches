@@ -1,29 +1,8 @@
-From 72874531e65f98d216db5949615f647abf864ebf Mon Sep 17 00:00:00 2001
-From: DataEraserC <102341238+DataEraserC@users.noreply.github.com>
-Date: Thu, 2 Jan 2025 19:57:01 +0800
-Subject: [PATCH 1/2] Reapply: "cred: switch to using atomic_long_t" commit
- f8fa5d76925991976b3e7076f9d1052515ec1fca upstream.
-
-There are multiple ways to grab references to credentials, and the only
-protection we have against overflowing it is the memory required to do
-so.
-
-With memory sizes only moving in one direction, let's bump the reference
-count to 64-bit and move it outside the realm of feasibly overflowing.
-
-Signed-off-by: Jens Axboe <axboe@kernel.dk>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
----
- include/linux/cred.h |  6 ++--
- kernel/cred.c        | 66 ++++++++++++++++++++++----------------------
- 2 files changed, 36 insertions(+), 36 deletions(-)
-
 diff --git a/include/linux/cred.h b/include/linux/cred.h
-index 1dc351d8548..69da4674ea0 100644
+index d23a5b3ea889..3ab0454d392e 100644
 --- a/include/linux/cred.h
 +++ b/include/linux/cred.h
-@@ -114,7 +114,7 @@ static inline int groups_search(const struct group_info *group_info, kgid_t grp)
+@@ -113,7 +113,7 @@ static inline int groups_search(const struct group_info *group_info, kgid_t grp)
   * same context as task->real_cred.
   */
  struct cred {
@@ -32,7 +11,7 @@ index 1dc351d8548..69da4674ea0 100644
  #ifdef CONFIG_DEBUG_CREDENTIALS
  	atomic_t	subscribers;	/* number of processes subscribed */
  	void		*put_addr;
-@@ -231,7 +231,7 @@ static inline bool cap_ambient_invariant_ok(const struct cred *cred)
+@@ -230,7 +230,7 @@ static inline bool cap_ambient_invariant_ok(const struct cred *cred)
   */
  static inline struct cred *get_new_cred(struct cred *cred)
  {
@@ -41,17 +20,17 @@ index 1dc351d8548..69da4674ea0 100644
  	return cred;
  }
  
-@@ -272,7 +272,7 @@ static inline void put_cred(const struct cred *_cred)
- 	struct cred *cred = (struct cred *) _cred;
+@@ -274,7 +274,7 @@ static inline void put_cred(const struct cred *_cred)
  
- 	validate_creds(cred);
--	if (atomic_dec_and_test(&(cred)->usage))
-+	if (atomic_long_dec_and_test(&(cred)->usage))
- 		__put_cred(cred);
+ 	if (cred) {
+ 		validate_creds(cred);
+-		if (atomic_dec_and_test(&(cred)->usage))
++		if (atomic_long_dec_and_test(&(cred)->usage))
+ 			__put_cred(cred);
+ 	}
  }
- 
 diff --git a/kernel/cred.c b/kernel/cred.c
-index a9f0f8b21d8..8c58f0f63af 100644
+index ec0413389723..acb19671d423 100644
 --- a/kernel/cred.c
 +++ b/kernel/cred.c
 @@ -101,17 +101,17 @@ static void put_cred_rcu(struct rcu_head *rcu)
@@ -222,7 +201,7 @@ index a9f0f8b21d8..8c58f0f63af 100644
  	set_cred_subscribers(new, 0);
  	get_uid(new->user);
  	get_user_ns(new->user_ns);
-@@ -760,8 +760,8 @@ static void dump_invalid_creds(const struct cred *cred, const char *label,
+@@ -747,8 +747,8 @@ static void dump_invalid_creds(const struct cred *cred, const char *label,
  	       cred == tsk->cred ? "[eff]" : "");
  	printk(KERN_ERR "CRED: ->magic=%x, put_addr=%p\n",
  	       cred->magic, cred->put_addr);
@@ -233,7 +212,7 @@ index a9f0f8b21d8..8c58f0f63af 100644
  	       read_cred_subscribers(cred));
  	printk(KERN_ERR "CRED: ->*uid = { %d,%d,%d,%d }\n",
  		from_kuid_munged(&init_user_ns, cred->uid),
-@@ -833,9 +833,9 @@ EXPORT_SYMBOL(__validate_process_creds);
+@@ -820,9 +820,9 @@ EXPORT_SYMBOL(__validate_process_creds);
   */
  void validate_creds_for_do_exit(struct task_struct *tsk)
  {
@@ -245,6 +224,3 @@ index a9f0f8b21d8..8c58f0f63af 100644
  	       read_cred_subscribers(tsk->cred));
  
  	__validate_process_creds(tsk, __FILE__, __LINE__);
--- 
-2.47.0
-
