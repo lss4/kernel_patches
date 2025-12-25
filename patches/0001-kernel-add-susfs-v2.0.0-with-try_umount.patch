@@ -664,7 +664,7 @@ index 750d4f49..6bb68528 100644
 +
  #endif
 diff --git a/kernel/setuid_hook.c b/kernel/setuid_hook.c
-index 69a47bbe..b75d7e52 100644
+index 69a47bbe..f7fba99d 100644
 --- a/kernel/setuid_hook.c
 +++ b/kernel/setuid_hook.c
 @@ -15,6 +15,9 @@
@@ -677,7 +677,7 @@ index 69a47bbe..b75d7e52 100644
  
  #include "allowlist.h"
  #include "setuid_hook.h"
-@@ -27,6 +30,31 @@
+@@ -27,6 +30,29 @@
  #include "syscall_hook_manager.h"
  #include "kernel_umount.h"
  
@@ -701,15 +701,13 @@ index 69a47bbe..b75d7e52 100644
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +extern void susfs_reorder_mnt_id(void);
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
-+extern void susfs_try_umount(uid_t uid);
-+#endif // #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
++
 +#endif // #ifdef CONFIG_KSU_SUSFS
 +
  static bool ksu_enhanced_security_enabled = false;
  
  static int enhanced_security_feature_get(u64 *value)
-@@ -66,6 +94,7 @@ static void ksu_install_manager_fd_tw_func(struct callback_head *cb)
+@@ -66,6 +92,7 @@ static void ksu_install_manager_fd_tw_func(struct callback_head *cb)
      kfree(cb);
  }
  
@@ -717,7 +715,7 @@ index 69a47bbe..b75d7e52 100644
  int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid)
  {
      // we rely on the fact that zygote always call setresuid(3) with same uids
-@@ -143,6 +172,114 @@ int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid)
+@@ -143,6 +170,110 @@ int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid)
  
      return 0;
  }
@@ -809,11 +807,7 @@ index 69a47bbe..b75d7e52 100644
 +
 +do_umount:
 +    // Handle kernel umount
-+#ifndef CONFIG_KSU_SUSFS_TRY_UMOUNT
 +    ksu_handle_umount(old_uid, new_uid);
-+#else
-+    susfs_try_umount(new_uid);
-+#endif // #ifndef CONFIG_KSU_SUSFS_TRY_UMOUNT
 +
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +    // We can reorder the mnt_id now after all sus mounts are umounted
@@ -832,7 +826,7 @@ index 69a47bbe..b75d7e52 100644
  
  extern void ksu_lsm_hook_init(void);
  void ksu_setuid_hook_init(void)
-@@ -158,4 +295,4 @@ void ksu_setuid_hook_exit(void)
+@@ -158,4 +289,4 @@ void ksu_setuid_hook_exit(void)
      pr_info("ksu_core_exit\n");
      ksu_kernel_umount_exit();
      ksu_unregister_feature_handler(KSU_FEATURE_ENHANCED_SECURITY);
