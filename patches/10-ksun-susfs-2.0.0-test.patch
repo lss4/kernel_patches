@@ -488,7 +488,7 @@ index 750d4f49..6bb68528 100644
 +
  #endif
 diff --git a/kernel/setuid_hook.c b/kernel/setuid_hook.c
-index 69a47bbe..acf6090e 100644
+index 69a47bbe..387fedcf 100644
 --- a/kernel/setuid_hook.c
 +++ b/kernel/setuid_hook.c
 @@ -15,6 +15,9 @@
@@ -543,7 +543,7 @@ index 69a47bbe..acf6090e 100644
  int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid)
  {
      // we rely on the fact that zygote always call setresuid(3) with same uids
-@@ -143,6 +171,102 @@ int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid)
+@@ -143,6 +171,106 @@ int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid)
  
      return 0;
  }
@@ -561,7 +561,7 @@ index 69a47bbe..acf6090e 100644
 +            if (!is_ksu_domain()) {
 +                pr_warn("find suspicious EoP: %d %s, from %d to %d\n", 
 +                    current->pid, current->comm, old_uid, new_uid);
-+                force_sig(SIGKILL);
++                send_sigkill();
 +                return 0;
 +            }
 +        }
@@ -570,7 +570,7 @@ index 69a47bbe..acf6090e 100644
 +            if (euid < current_euid().val && !ksu_is_allow_uid_for_current(old_uid)) {
 +                pr_warn("find suspicious EoP: %d %s, from %d to %d\n", 
 +                    current->pid, current->comm, old_uid, new_uid);
-+                force_sig(SIGKILL);
++                send_sigkill();
 +                return 0;
 +            }
 +        }
@@ -594,7 +594,9 @@ index 69a47bbe..acf6090e 100644
 +    //   ksu manager
 +    if (ksu_get_manager_appid() == new_uid % PER_USER_RANGE) {
 +        spin_lock_irq(&current->sighand->siglock);
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 +        ksu_seccomp_allow_cache(current->seccomp.filter, __NR_reboot);
++#endif
 +        spin_unlock_irq(&current->sighand->siglock);
 +
 +        pr_info("install fd for manager: %d\n", new_uid);
@@ -618,7 +620,9 @@ index 69a47bbe..acf6090e 100644
 +        if (current->seccomp.mode == SECCOMP_MODE_FILTER &&
 +            current->seccomp.filter) {
 +            spin_lock_irq(&current->sighand->siglock);
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 +            ksu_seccomp_allow_cache(current->seccomp.filter, __NR_reboot);
++#endif
 +            spin_unlock_irq(&current->sighand->siglock);
 +        }
 +    }
@@ -646,7 +650,7 @@ index 69a47bbe..acf6090e 100644
  
  extern void ksu_lsm_hook_init(void);
  void ksu_setuid_hook_init(void)
-@@ -158,4 +282,4 @@ void ksu_setuid_hook_exit(void)
+@@ -158,4 +286,4 @@ void ksu_setuid_hook_exit(void)
      pr_info("ksu_core_exit\n");
      ksu_kernel_umount_exit();
      ksu_unregister_feature_handler(KSU_FEATURE_ENHANCED_SECURITY);
