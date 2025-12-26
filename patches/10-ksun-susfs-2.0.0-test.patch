@@ -663,7 +663,7 @@ index 69a47bbe..387fedcf 100644
 \ No newline at end of file
 +}
 diff --git a/kernel/sucompat.c b/kernel/sucompat.c
-index 9965725f..96ebe332 100644
+index 9965725f..be2a440f 100644
 --- a/kernel/sucompat.c
 +++ b/kernel/sucompat.c
 @@ -20,6 +20,12 @@
@@ -803,7 +803,7 @@ index 9965725f..96ebe332 100644
 +}
 +#endif // #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 +
-+int ksu_handle_devpts(struct inode *inode)
++int __ksu_handle_devpts(struct inode *inode)
 +{
 +    if (!current->mm) {
 +        return 0;
