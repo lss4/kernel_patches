@@ -663,7 +663,7 @@ index 69a47bbe..387fedcf 100644
 \ No newline at end of file
 +}
 diff --git a/kernel/sucompat.c b/kernel/sucompat.c
-index 9965725f..dfc00195 100644
+index 9965725f..3069418f 100644
 --- a/kernel/sucompat.c
 +++ b/kernel/sucompat.c
 @@ -20,6 +20,12 @@
@@ -687,7 +687,7 @@ index 9965725f..dfc00195 100644
  int ksu_handle_faccessat(int *dfd, const char __user **filename_user,
  		int *mode, int *__unused_flags)
  {
-@@ -249,6 +256,150 @@ int __maybe_unused ksu_handle_devpts(struct inode *inode)
+@@ -249,6 +256,154 @@ int __maybe_unused ksu_handle_devpts(struct inode *inode)
  	return __ksu_handle_devpts(inode);
  }
  
@@ -819,7 +819,11 @@ index 9965725f..dfc00195 100644
 +        return 0;
 +
 +    if (ksu_file_sid) {
-+        struct inode_security_struct *sec = selinux_inode(inode);
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0) || defined(KSU_OPTIONAL_SELINUX_INODE)
++		struct inode_security_struct *sec = selinux_inode(inode);
++#else
++		struct inode_security_struct *sec = (struct inode_security_struct *)inode->i_security;
++#endif
 +        if (sec) {
 +            sec->sid = ksu_file_sid;
 +        }
