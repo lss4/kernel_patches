@@ -1,0 +1,59 @@
+From 164917f56d0e75ab51bb9f1bdf489acac7a6d3db Mon Sep 17 00:00:00 2001
+From: The_second_Tom <31297720+onlytominsecond@users.noreply.github.com>
+Date: Tue, 13 Feb 2024 09:44:52 +0800
+Subject: [PATCH] BACKPORT: fs/namespace.c path_umount
+
+https://elixir.bootlin.com/linux/v5.9/source/fs/namespace.c#L1728
+
+https://github.com/OnlyTomInSecond/android_kernel_xiaomi_sdm845/commit/03d233db8bbe9fe101509430bfa09d1899168aa7
+
+full KernelSU gki features on non-gki hurray!
+---
+ fs/namespace.c | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)
+
+diff --git a/fs/namespace.c b/fs/namespace.c
+index 5e94ec9f45d4..d6a27efc596f 100644
+--- a/fs/namespace.c
++++ b/fs/namespace.c
+@@ -1645,6 +1645,40 @@ static inline bool may_mandlock(void)
+ }
+ #endif
+ 
++static int can_umount(const struct path *path, int flags)
++{
++	struct mount *mnt = real_mount(path->mnt);
++
++	if (flags & ~(MNT_FORCE | MNT_DETACH | MNT_EXPIRE | UMOUNT_NOFOLLOW))
++		return -EINVAL;
++	if (!may_mount())
++		return -EPERM;
++	if (path->dentry != path->mnt->mnt_root)
++		return -EINVAL;
++	if (!check_mnt(mnt))
++		return -EINVAL;
++	if (mnt->mnt.mnt_flags & MNT_LOCKED) /* Check optimistically */
++		return -EINVAL;
++	if (flags & MNT_FORCE && !capable(CAP_SYS_ADMIN))
++		return -EPERM;
++	return 0;
++}
++
++int path_umount(struct path *path, int flags)
++{
++	struct mount *mnt = real_mount(path->mnt);
++	int ret;
++
++	ret = can_umount(path, flags);
++	if (!ret)
++		ret = do_umount(mnt, flags);
++
++	/* we mustn't call path_put() as that would clear mnt_expiry_mark */
++	dput(path->dentry);
++	mntput_no_expire(mnt);
++	return ret;
++}
++
+ /*
+  * Now umount can handle mount points as well as block devices.
+  * This is important for filesystems which use unnamed block devices.
