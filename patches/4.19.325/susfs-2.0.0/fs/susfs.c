@@ -587,7 +587,7 @@ void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned 
 /* try_umount */
 #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
 static LIST_HEAD(LH_TRY_UMOUNT_PATH);
-
+static DEFINE_SPINLOCK(susfs_spin_lock_try_umount);
 void susfs_add_try_umount(void __user **user_info) {
 	struct st_susfs_try_umount_list *cursor = NULL, *temp = NULL;
 	struct st_susfs_try_umount_list *new_list = NULL;
@@ -617,9 +617,9 @@ void susfs_add_try_umount(void __user **user_info) {
 	memcpy(&new_list->info, &info, sizeof(info));
 
 	INIT_LIST_HEAD(&new_list->list);
-	spin_lock(&susfs_spin_lock);
+	spin_lock(&susfs_spin_lock_try_umount);
 	list_add_tail(&new_list->list, &LH_TRY_UMOUNT_PATH);
-	spin_unlock(&susfs_spin_lock);
+	spin_unlock(&susfs_spin_lock_try_umount);
 	SUSFS_LOGI("target_pathname: '%s', mnt_mode: %d, is successfully added to LH_TRY_UMOUNT_PATH\n", new_list->info.target_pathname, new_list->info.mnt_mode);
 	info.err = 0;
 	goto out_copy_to_user;
