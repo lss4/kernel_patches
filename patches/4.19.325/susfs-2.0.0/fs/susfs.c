@@ -19,6 +19,9 @@
 
 extern bool susfs_is_current_ksu_domain(void);
 
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+extern void try_umount(const char *mnt, bool check_mnt, int flags, uid_t uid);
+#endif
 #ifdef CONFIG_KSU_SUSFS_ENABLE_LOG
 bool susfs_is_log_enabled __read_mostly = true;
 #define SUSFS_LOGI(fmt, ...) if (susfs_is_log_enabled) pr_info("susfs:[%u][%d][%s] " fmt, current_uid().val, current->pid, __func__, ##__VA_ARGS__)
@@ -580,6 +583,59 @@ void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned 
 	}
 }
 #endif // #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+
+/* try_umount */
+#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
+static LIST_HEAD(LH_TRY_UMOUNT_PATH);
+int susfs_add_try_umount(struct st_susfs_try_umount* __user user_info) {
+	struct st_susfs_try_umount_list *cursor = NULL, *temp = NULL;
+	struct st_susfs_try_umount_list *new_list = NULL;
+	struct st_susfs_try_umount info;
+
+	if (copy_from_user(&info, user_info, sizeof(info))) {
+		SUSFS_LOGE("failed copying from userspace\n");
+		return 1;
+	}
+
+	list_for_each_entry_safe(cursor, temp, &LH_TRY_UMOUNT_PATH, list) {
+		if (unlikely(!strcmp(info.target_pathname, cursor->info.target_pathname))) {
+			SUSFS_LOGE("target_pathname: '%s' is already created in LH_TRY_UMOUNT_PATH\n", info.target_pathname);
+			return 1;
+		}
+	}
+
+	new_list = kmalloc(sizeof(struct st_susfs_try_umount_list), GFP_KERNEL);
+	if (!new_list) {
+		SUSFS_LOGE("no enough memory\n");
+		return 1;
+	}
+
+	memcpy(&new_list->info, &info, sizeof(info));
+
+	INIT_LIST_HEAD(&new_list->list);
+	spin_lock(&susfs_spin_lock);
+	list_add_tail(&new_list->list, &LH_TRY_UMOUNT_PATH);
+	spin_unlock(&susfs_spin_lock);
+	SUSFS_LOGI("target_pathname: '%s', mnt_mode: %d, is successfully added to LH_TRY_UMOUNT_PATH\n", new_list->info.target_pathname, new_list->info.mnt_mode);
+	return 0;
+}
+
+void susfs_try_umount(uid_t target_uid) {
+	struct st_susfs_try_umount_list *cursor = NULL;
+
+	// We should umount in reversed order
+	list_for_each_entry_reverse(cursor, &LH_TRY_UMOUNT_PATH, list) {
+		if (cursor->info.mnt_mode == TRY_UMOUNT_DEFAULT) {
+			try_umount(cursor->info.target_pathname, false, 0, target_uid);
+		} else if (cursor->info.mnt_mode == TRY_UMOUNT_DETACH) {
+			try_umount(cursor->info.target_pathname, false, MNT_DETACH, target_uid);
+		} else {
+			SUSFS_LOGE("failed umounting '%s' for uid: %d, mnt_mode '%d' not supported\n",
+							cursor->info.target_pathname, target_uid, cursor->info.mnt_mode);
+		}
+	}
+}
+#endif // #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
 
 /* spoof_uname */
 #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
