@@ -1,8 +1,8 @@
 diff --git a/kernel/Kbuild b/kernel/Kbuild
-index 458c6974..a8e451ca 100644
+index 7438caa5..81b49d27 100644
 --- a/kernel/Kbuild
 +++ b/kernel/Kbuild
-@@ -94,6 +94,14 @@ ccflags-y += -DKSU_KPROBES_HOOK
+@@ -98,6 +98,14 @@ ccflags-y += -DKSU_KPROBES_HOOK
  HAVE_KSU_HOOK := 0
  endif
  
@@ -17,64 +17,37 @@ index 458c6974..a8e451ca 100644
  ifeq ($(CONFIG_KSU_MANUAL_HOOK), y)
  HAVE_KSU_HOOK := $(shell grep -q "ksu_handle_faccessat" $(srctree)/fs/open.c; echo $$?)
  ifeq ($(HAVE_KSU_HOOK),0)
-@@ -102,7 +110,7 @@ endif
+@@ -106,7 +114,7 @@ endif
  endif
  
  ifneq ($(HAVE_KSU_HOOK),0)
 -$(error -- KernelSU: No hooks were defined, please integrate manual hooks in your kernel!)
-+$(error -- No hooks were defined, please add susfs or integrate manual hooks in your kernel!)
++$(error -- No hooks were defined, please add SuSFS or integrate manual hooks in your kernel!)
  endif
  
  # some backports
-@@ -219,4 +227,14 @@ ccflags-y += -DEXPECTED_MANAGER_SIZE=$(KSU_NEXT_MANAGER_SIZE)
+@@ -238,4 +246,4 @@ ccflags-y += -DEXPECTED_MANAGER_SIZE=$(KSU_NEXT_MANAGER_SIZE)
  ccflags-y += -DEXPECTED_MANAGER_HASH=\"$(KSU_NEXT_MANAGER_HASH)\"
  
  ccflags-y += -Wno-strict-prototypes -Wno-int-conversion -Wno-gcc-compat -Wno-missing-prototypes
 -ccflags-y += -Wno-declaration-after-statement -Wno-unused-function
 \ No newline at end of file
-+ccflags-y += -Wno-declaration-after-statement -Wno-unused-function
-+
-+## For susfs stuff ##
-+ifeq ($(shell test -e $(srctree)/fs/susfs.c; echo $$?),0)
-+$(eval SUSFS_VERSION=$(shell cat $(srctree)/include/linux/susfs.h | grep -E '^#define SUSFS_VERSION' | cut -d' ' -f3 | sed 's/"//g'))
-+$(info )
-+$(info -- SUSFS_VERSION: $(SUSFS_VERSION))
-+else
-+$(info -- You have not integrated susfs in your kernel yet.)
-+$(info -- Read: https://gitlab.com/simonpunk/susfs4ksu)
-+endif
++ccflags-y += -Wno-declaration-after-statement -Wno-unused-function -Wno-unused-variable 
+\ No newline at end of file
 diff --git a/kernel/Kconfig b/kernel/Kconfig
-index 320aa125..685f68bd 100644
+index c093744d..fc94b4e1 100644
 --- a/kernel/Kconfig
 +++ b/kernel/Kconfig
-@@ -19,7 +19,7 @@ config KSU_DEBUG
- # For easier extern ifdef handling
- config KSU_MANUAL_HOOK
- 	bool "KernelSU manual hook mode."
--	depends on KSU && KSU != m
-+	depends on KSU && KSU != m && !KSU_SUSFS
- 	default y if !KPROBES
- 	default n
+@@ -23,10 +23,109 @@ config KSU_ALLOWLIST_WORKAROUND
  	help
-@@ -27,7 +27,7 @@ config KSU_MANUAL_HOOK
- 
- config KSU_KPROBES_HOOK
- 	bool "KernelSU tracepoint+kretprobe hook"
--	depends on KSU && !KSU_MANUAL_HOOK
-+	depends on KSU && !KSU_MANUAL_HOOK && !KSU_SUSFS
- 	depends on KRETPROBES && KPROBES && HAVE_SYSCALL_TRACEPOINTS
- 	default y if KPROBES && KRETPROBES && HAVE_SYSCALL_TRACEPOINTS
- 	default n
-@@ -35,4 +35,102 @@ config KSU_KPROBES_HOOK
- 	  Enable KPROBES, KRETPROBES and TRACEPOINT hook for KernelSU core.
- 	  This should not be used on kernel below 5.10.
+ 	  Enable workaround for broken allowlist save
  
 +menu "KernelSU - SUSFS"
 +config KSU_SUSFS
 +	bool "KernelSU addon - SUSFS"
 +	depends on KSU
 +	depends on THREAD_INFO_IN_TASK
-+	default n
++	default y
 +	help
 +		Patch and Enable SUSFS to kernel with KernelSU.
 +
@@ -167,6 +140,29 @@ index 320aa125..685f68bd 100644
 +
 +endmenu
 +
+ # For easier extern ifdef handling
++menu "KernelSU - Hook Method"
+ config KSU_MANUAL_HOOK
+ 	bool "KernelSU manual hook mode."
+-	depends on KSU && KSU != m
++	depends on KSU && KSU != m && !KSU_SUSFS
+ 	default y if !KPROBES
+ 	default n
+ 	help
+@@ -34,12 +133,13 @@ config KSU_MANUAL_HOOK
+ 
+ config KSU_KPROBES_HOOK
+ 	bool "KernelSU tracepoint+kretprobe hook"
+-	depends on KSU && !KSU_MANUAL_HOOK
++	depends on KSU && !KSU_MANUAL_HOOK && !KSU_SUSFS
+ 	depends on KRETPROBES && KPROBES && HAVE_SYSCALL_TRACEPOINTS
+ 	default y if KPROBES && KRETPROBES && HAVE_SYSCALL_TRACEPOINTS
+ 	default n
+ 	help
+ 	  Enable KPROBES, KRETPROBES and TRACEPOINT hook for KernelSU core.
+ 	  This should not be used on kernel below 5.10.
++endmenu
+ 
  endmenu
 diff --git a/kernel/Makefile b/kernel/Makefile
 index 5db16b01..4bb31639 100644
@@ -188,7 +184,7 @@ index 5db16b01..4bb31639 100644
  # Keep a new line here!! Because someone may append config
 \ No newline at end of file
 diff --git a/kernel/allowlist.c b/kernel/allowlist.c
-index 9c9ba6e5..64780bdb 100644
+index 706b68b4..e9cf8e6d 100644
 --- a/kernel/allowlist.c
 +++ b/kernel/allowlist.c
 @@ -267,7 +267,7 @@ out:
@@ -196,20 +192,20 @@ index 9c9ba6e5..64780bdb 100644
  	if (persist) {
  		persistent_allow_list();
 -#ifdef KSU_KPROBES_HOOK
-+#if defined(KSU_KPROBES_HOOK) || !defined(CONFIG_KSU_SUSFS)
++#if defined(KSU_KPROBES_HOOK) && !defined(CONFIG_KSU_SUSFS)
  		// FIXME: use a new flag
  		ksu_mark_running_process();
  #endif
 diff --git a/kernel/app_profile.c b/kernel/app_profile.c
-index 213dfdbb..1eecf86b 100644
+index 2c67f8b7..e7835faa 100644
 --- a/kernel/app_profile.c
 +++ b/kernel/app_profile.c
-@@ -317,7 +317,7 @@ void escape_with_root_profile(void)
+@@ -324,7 +324,7 @@ void escape_with_root_profile(void)
  
  	setup_selinux(profile->selinux_domain);
  
 -#ifdef KSU_KPROBES_HOOK
-+#if defined(KSU_KPROBES_HOOK) || !defined(CONFIG_KSU_SUSFS)
++#if defined(KSU_KPROBES_HOOK) && !defined(CONFIG_KSU_SUSFS)
  	struct task_struct *p = current;
  	struct task_struct *t;
  	for_each_thread (p, t) {
@@ -274,6 +270,21 @@ index e4d1e60c..4691869f 100644
  
  void ksu_kernel_umount_init(void)
  {
+diff --git a/kernel/kernel_umount.h b/kernel/kernel_umount.h
+index e5448955..e19ba08e 100644
+--- a/kernel/kernel_umount.h
++++ b/kernel/kernel_umount.h
+@@ -8,8 +8,10 @@
+ void ksu_kernel_umount_init(void);
+ void ksu_kernel_umount_exit(void);
+ 
++#if !defined(CONFIG_KSU_SUSFS) || !defined(CONFIG_KSU_SUSFS_TRY_UMOUNT)
+ // Handler function to be called from setresuid hook
+ int ksu_handle_umount(uid_t old_uid, uid_t new_uid);
++#endif
+ 
+ // for the umount list
+ struct mount_entry {
 diff --git a/kernel/ksu.c b/kernel/ksu.c
 index 7742dad6..0b3feca6 100644
 --- a/kernel/ksu.c
@@ -317,19 +328,19 @@ index 7742dad6..0b3feca6 100644
  
  	ksu_file_wrapper_init();
 diff --git a/kernel/ksud.c b/kernel/ksud.c
-index c5849f90..198481bc 100644
+index dfc5ddaf..2e54e3bc 100644
 --- a/kernel/ksud.c
 +++ b/kernel/ksud.c
-@@ -69,7 +69,7 @@ static void stop_vfs_read_hook();
+@@ -72,7 +72,7 @@ static void stop_vfs_read_hook();
  static void stop_execve_hook();
  static void stop_input_hook();
  
 -#ifdef KSU_KPROBES_HOOK
-+#if defined(KSU_KPROBES_HOOK) || !defined(CONFIG_KSU_SUSFS)
++#if defined(KSU_KPROBES_HOOK) && !defined(CONFIG_KSU_SUSFS)
  static struct work_struct __maybe_unused stop_vfs_read_work;
  static struct work_struct __maybe_unused stop_execve_hook_work;
  static struct work_struct __maybe_unused stop_input_hook_work;
-@@ -136,6 +136,7 @@ void on_boot_completed(void)
+@@ -139,6 +139,7 @@ void on_boot_completed(void)
      ksu_avc_spoof_late_init();
  }
  
@@ -337,7 +348,7 @@ index c5849f90..198481bc 100644
  #define MAX_ARG_STRINGS 0x7FFFFFFF
  struct user_arg_ptr {
  #ifdef CONFIG_COMPAT
-@@ -148,6 +149,7 @@ struct user_arg_ptr {
+@@ -151,6 +152,7 @@ struct user_arg_ptr {
  #endif
  	} ptr;
  };
@@ -345,7 +356,7 @@ index c5849f90..198481bc 100644
  
  static const char __user *get_user_arg_ptr(struct user_arg_ptr argv, int nr)
  {
-@@ -369,6 +371,10 @@ int ksu_handle_pre_ksud(const char *filename)
+@@ -375,6 +377,10 @@ int ksu_handle_pre_ksud(const char *filename)
  	return ksu_handle_bprm_ksud(filename, argv1, envp, envp_copy_len);
  }
  
@@ -356,7 +367,7 @@ index c5849f90..198481bc 100644
  // IMPORTANT NOTE: the call from execve_handler_pre WON'T provided correct value for envp and flags in GKI version
  int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
  				struct user_arg_ptr *argv,
-@@ -393,6 +399,14 @@ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
+@@ -404,6 +410,14 @@ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
  		return 0;
  	}
  
@@ -371,7 +382,7 @@ index c5849f90..198481bc 100644
  	if (unlikely(!memcmp(filename->name, system_bin_init,
  				sizeof(system_bin_init) - 1) &&
  			argv)) {
-@@ -520,7 +534,7 @@ static ssize_t read_iter_proxy(struct kiocb *iocb, struct iov_iter *to)
+@@ -608,7 +622,7 @@ static bool check_init_path(char *dpath)
  int ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
  				size_t *count_ptr, loff_t **pos)
  {
@@ -380,7 +391,7 @@ index c5849f90..198481bc 100644
  	if (!ksu_vfs_read_hook) {
  		return 0;
  	}
-@@ -633,7 +647,7 @@ static bool is_volumedown_enough(unsigned int count)
+@@ -702,7 +716,7 @@ static bool is_volumedown_enough(unsigned int count)
  int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code,
  					int *value)
  {
@@ -389,57 +400,57 @@ index c5849f90..198481bc 100644
  	if (!ksu_input_hook) {
  		return 0;
  	}
-@@ -675,7 +689,7 @@ bool ksu_is_safe_mode()
+@@ -744,7 +758,7 @@ bool ksu_is_safe_mode()
  	return false;
  }
  
 -#ifdef KSU_KPROBES_HOOK
-+#if defined(KSU_KPROBES_HOOK) || !defined(CONFIG_KSU_SUSFS)
++#if defined(KSU_KPROBES_HOOK) && !defined(CONFIG_KSU_SUSFS)
  
  static int sys_execve_handler_pre(struct kprobe *p, struct pt_regs *regs)
  {
-@@ -810,7 +824,7 @@ int __maybe_unused ksu_handle_compat_execve_ksud(
+@@ -879,7 +893,7 @@ int __maybe_unused ksu_handle_compat_execve_ksud(
  
  static void stop_vfs_read_hook()
  {
 -#ifdef KSU_KPROBES_HOOK
-+#if defined(KSU_KPROBES_HOOK) || !defined(CONFIG_KSU_SUSFS)
++#if defined(KSU_KPROBES_HOOK) && !defined(CONFIG_KSU_SUSFS)
  	bool ret = schedule_work(&stop_vfs_read_work);
  	pr_info("unregister vfs_read kprobe: %d!\n", ret);
  #else
-@@ -821,7 +835,7 @@ static void stop_vfs_read_hook()
+@@ -890,7 +904,7 @@ static void stop_vfs_read_hook()
  
  static void stop_execve_hook()
  {
 -#ifdef KSU_KPROBES_HOOK
-+#if defined(KSU_KPROBES_HOOK) || !defined(CONFIG_KSU_SUSFS)
++#if defined(KSU_KPROBES_HOOK) && !defined(CONFIG_KSU_SUSFS)
  	bool ret = schedule_work(&stop_execve_hook_work);
  	pr_info("unregister execve kprobe: %d!\n", ret);
  #else
-@@ -832,7 +846,7 @@ static void stop_execve_hook()
+@@ -901,7 +915,7 @@ static void stop_execve_hook()
  
  static void stop_input_hook()
  {
 -#ifdef KSU_KPROBES_HOOK
-+#if defined(KSU_KPROBES_HOOK) || !defined(CONFIG_KSU_SUSFS)
++#if defined(KSU_KPROBES_HOOK) && !defined(CONFIG_KSU_SUSFS)
  	static bool input_hook_stopped = false;
  	if (input_hook_stopped) {
  		return;
-@@ -853,7 +867,7 @@ static void stop_input_hook()
+@@ -922,7 +936,7 @@ static void stop_input_hook()
  // ksud: module support
  void ksu_ksud_init()
  {
 -#ifdef KSU_KPROBES_HOOK
-+#if defined(KSU_KPROBES_HOOK) || !defined(CONFIG_KSU_SUSFS)
++#if defined(KSU_KPROBES_HOOK) && !defined(CONFIG_KSU_SUSFS)
  	int ret;
  
  	ret = register_kprobe(&execve_kp);
-@@ -873,7 +887,7 @@ void ksu_ksud_init()
+@@ -942,7 +956,7 @@ void ksu_ksud_init()
  
  void ksu_ksud_exit()
  {
 -#ifdef KSU_KPROBES_HOOK
-+#if defined(KSU_KPROBES_HOOK) || !defined(CONFIG_KSU_SUSFS)
++#if defined(KSU_KPROBES_HOOK) && !defined(CONFIG_KSU_SUSFS)
  	unregister_kprobe(&execve_kp);
  	// this should be done before unregister vfs_read_kp
  	// unregister_kprobe(&vfs_read_kp);
@@ -472,43 +483,29 @@ index af0ddbd1..5f13928c 100644
 +
  #endif
 diff --git a/kernel/lsm_hooks.c b/kernel/lsm_hooks.c
-index bdc106ab..d3617454 100644
+index 9cc2212d..83efc925 100644
 --- a/kernel/lsm_hooks.c
 +++ b/kernel/lsm_hooks.c
-@@ -30,6 +30,7 @@ static int ksu_key_permission(key_ref_t key_ref, const struct cred *cred,
- }
- #endif
- 
-+#if defined(CONFIG_KSU_MANUAL_HOOK) && !defined(CONFIG_KSU_SUSFS)
- static int ksu_task_fix_setuid(struct cred *new, const struct cred *old,
- 			       int flags)
- {
-@@ -84,17 +85,20 @@ int ksu_bprm_check(struct linux_binprm *bprm)
- 	return 0;
- 
- }
-+#endif
- 
- static struct security_hook_list ksu_hooks[] = {
- #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) ||                           \
- 	defined(CONFIG_IS_HW_HISI)
+@@ -144,12 +144,12 @@ static struct security_hook_list ksu_hooks[] = {
+ 	defined(CONFIG_IS_HW_HISI) || defined(CONFIG_KSU_ALLOWLIST_WORKAROUND)
  	LSM_HOOK_INIT(key_permission, ksu_key_permission),
  #endif
+-#ifndef KSU_KPROBES_HOOK
 +#if defined(CONFIG_KSU_MANUAL_HOOK) && !defined(CONFIG_KSU_SUSFS)
- 	LSM_HOOK_INIT(inode_permission, ksu_inode_permission),
- #ifndef KSU_KPROBES_HOOK
  	LSM_HOOK_INIT(bprm_check_security, ksu_bprm_check),
- #endif
+ 	LSM_HOOK_INIT(inode_permission, ksu_inode_permission),
+ 	LSM_HOOK_INIT(inode_rename, ksu_inode_rename),
  	LSM_HOOK_INIT(task_fix_setuid, ksu_task_fix_setuid)
+-#endif
 +#endif // #if defined(CONFIG_KSU_MANUAL_HOOK) && !defined(CONFIG_KSU_SUSFS)
  };
  
  #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 diff --git a/kernel/selinux/rules.c b/kernel/selinux/rules.c
-index 7f99b50e..bfd88a73 100644
+index f216fe39..a0aab07f 100644
 --- a/kernel/selinux/rules.c
 +++ b/kernel/selinux/rules.c
-@@ -130,6 +130,15 @@ void apply_kernelsu_rules()
+@@ -134,6 +134,15 @@ void apply_kernelsu_rules()
      ksu_allow(db, "system_server", KERNEL_SU_DOMAIN, "process", "getpgid");
      ksu_allow(db, "system_server", KERNEL_SU_DOMAIN, "process", "sigkill");
  
@@ -525,16 +522,13 @@ index 7f99b50e..bfd88a73 100644
  }
  
 diff --git a/kernel/selinux/selinux.c b/kernel/selinux/selinux.c
-index 0fba6d3d..f07bb18c 100644
+index 6e94afc9..abfeb1b9 100644
 --- a/kernel/selinux/selinux.c
 +++ b/kernel/selinux/selinux.c
-@@ -192,4 +192,95 @@ u32 ksu_get_ksu_file_sid()
-         pr_info("get ksufile sid err %d\n", err);
+@@ -194,3 +194,94 @@ u32 ksu_get_ksu_file_sid()
      }
      return ksu_file_sid;
--}
-\ No newline at end of file
-+}
+ }
 +
 +#ifdef CONFIG_KSU_SUSFS
 +#define KERNEL_INIT_DOMAIN "u:r:init:s0"
@@ -627,10 +621,10 @@ index 0fba6d3d..f07bb18c 100644
 +}
 +#endif // #ifdef CONFIG_KSU_SUSFS
 diff --git a/kernel/selinux/selinux.h b/kernel/selinux/selinux.h
-index 750d4f49..6bb68528 100644
+index 6b0b9db7..afc75e48 100644
 --- a/kernel/selinux/selinux.h
 +++ b/kernel/selinux/selinux.h
-@@ -75,4 +75,17 @@ int handle_sepolicy(unsigned long arg3, void __user *arg4);
+@@ -80,4 +80,17 @@ int handle_sepolicy(unsigned long arg3, void __user *arg4);
  
  void setup_ksu_cred();
  
@@ -649,7 +643,7 @@ index 750d4f49..6bb68528 100644
 +
  #endif
 diff --git a/kernel/setuid_hook.c b/kernel/setuid_hook.c
-index 69a47bbe..f7fba99d 100644
+index 69a47bbe..23eb6f88 100644
 --- a/kernel/setuid_hook.c
 +++ b/kernel/setuid_hook.c
 @@ -15,6 +15,9 @@
@@ -662,7 +656,7 @@ index 69a47bbe..f7fba99d 100644
  
  #include "allowlist.h"
  #include "setuid_hook.h"
-@@ -27,6 +30,29 @@
+@@ -27,6 +30,31 @@
  #include "syscall_hook_manager.h"
  #include "kernel_umount.h"
  
@@ -686,13 +680,15 @@ index 69a47bbe..f7fba99d 100644
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +extern void susfs_reorder_mnt_id(void);
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+
++#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
++extern void susfs_try_umount(uid_t uid);
++#endif // #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
 +#endif // #ifdef CONFIG_KSU_SUSFS
 +
  static bool ksu_enhanced_security_enabled = false;
  
  static int enhanced_security_feature_get(u64 *value)
-@@ -66,6 +92,7 @@ static void ksu_install_manager_fd_tw_func(struct callback_head *cb)
+@@ -66,6 +94,7 @@ static void ksu_install_manager_fd_tw_func(struct callback_head *cb)
      kfree(cb);
  }
  
@@ -700,7 +696,7 @@ index 69a47bbe..f7fba99d 100644
  int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid)
  {
      // we rely on the fact that zygote always call setresuid(3) with same uids
-@@ -143,6 +170,110 @@ int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid)
+@@ -143,6 +172,114 @@ int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid)
  
      return 0;
  }
@@ -792,7 +788,11 @@ index 69a47bbe..f7fba99d 100644
 +
 +do_umount:
 +    // Handle kernel umount
++#ifndef CONFIG_KSU_SUSFS_TRY_UMOUNT
 +    ksu_handle_umount(old_uid, new_uid);
++#else
++    susfs_try_umount(new_uid);
++#endif // #ifndef CONFIG_KSU_SUSFS_TRY_UMOUNT
 +
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +    // We can reorder the mnt_id now after all sus mounts are umounted
@@ -811,13 +811,6 @@ index 69a47bbe..f7fba99d 100644
  
  extern void ksu_lsm_hook_init(void);
  void ksu_setuid_hook_init(void)
-@@ -158,4 +289,4 @@ void ksu_setuid_hook_exit(void)
-     pr_info("ksu_core_exit\n");
-     ksu_kernel_umount_exit();
-     ksu_unregister_feature_handler(KSU_FEATURE_ENHANCED_SECURITY);
--}
-\ No newline at end of file
-+}
 diff --git a/kernel/sucompat.c b/kernel/sucompat.c
 index 9965725f..3e30ba0f 100644
 --- a/kernel/sucompat.c
@@ -1124,7 +1117,7 @@ index 1999af84..6d82243d 100644
  				void *__never_use_argv, void *__never_use_envp,
  				int *__never_use_flags);
 diff --git a/kernel/supercalls.c b/kernel/supercalls.c
-index ece8829d..0cb759ae 100644
+index c76b3fdd..b5d8d264 100644
 --- a/kernel/supercalls.c
 +++ b/kernel/supercalls.c
 @@ -11,6 +11,10 @@
@@ -1244,32 +1237,26 @@ index ece8829d..0cb759ae 100644
  }
  
  static int do_get_hook_mode(void __user *arg)
-@@ -429,10 +461,14 @@ static int do_get_hook_mode(void __user *arg)
+@@ -428,6 +460,9 @@ static int do_get_hook_mode(void __user *arg)
+ #ifndef KSU_KPROBES_HOOK
  	type = "Manual";
  #endif
- 
 +#ifdef CONFIG_KSU_SUSFS
 +	type = "Inline (SuSFS)";
 +#endif
-+
+ 
  #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
  	strscpy(cmd.mode, type, sizeof(cmd.mode));
- #else
--	strscpy(cmd.mode, type, sizeof(cmd.mode));
-+	strlcpy(cmd.mode, type, sizeof(cmd.mode));
- #endif
- 
- 	if (copy_to_user(arg, &cmd, sizeof(cmd))) {
-@@ -670,7 +706,7 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
+@@ -670,7 +705,7 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
  	{ .cmd = 0, .name = NULL, .handler = NULL, .perm_check = NULL } // Sentinel
  };
  
 -#ifdef KSU_KPROBES_HOOK
-+#if defined(KSU_KPROBES_HOOK) || !defined(CONFIG_KSU_SUSFS)
++#if defined(KSU_KPROBES_HOOK) && !defined(CONFIG_KSU_SUSFS)
  struct ksu_install_fd_tw {
  	struct callback_head cb;
  	int __user *outp;
-@@ -763,6 +799,95 @@ int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd,
+@@ -767,6 +802,101 @@ int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd,
  		magic2);
  #endif
  
@@ -1313,6 +1300,12 @@ index ece8829d..0cb759ae 100644
 +            return 0;
 +        }
 +#endif //#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
++#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
++        if (cmd == CMD_SUSFS_ADD_TRY_UMOUNT) {
++            susfs_add_try_umount(arg);
++            return 0;
++        }
++#endif //#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
 +#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
 +        if (cmd == CMD_SUSFS_SET_UNAME) {
 +            susfs_set_uname(arg);
@@ -1365,21 +1358,21 @@ index ece8829d..0cb759ae 100644
  	// Check if this is a request to install KSU fd
  	if (magic2 == KSU_INSTALL_MAGIC2) {
  		int fd = ksu_install_fd();
-@@ -819,7 +944,7 @@ void ksu_supercalls_init(void)
+@@ -827,7 +957,7 @@ void ksu_supercalls_init(void)
  		pr_info("  %-18s = 0x%08x\n", ksu_ioctl_handlers[i].name, ksu_ioctl_handlers[i].cmd);
  	}
  
 -#ifdef KSU_KPROBES_HOOK
-+#if defined(KSU_KPROBES_HOOK) || !defined(CONFIG_KSU_SUSFS)
++#if defined(KSU_KPROBES_HOOK) && !defined(CONFIG_KSU_SUSFS)
  	int rc = register_kprobe(&reboot_kp);
  	if (rc) {
  		pr_err("reboot kprobe failed: %d\n", rc);
-@@ -830,9 +955,11 @@ void ksu_supercalls_init(void)
+@@ -841,9 +971,11 @@ void ksu_supercalls_init(void)
  }
  
  void ksu_supercalls_exit(void){
 -#ifdef KSU_KPROBES_HOOK
-+#if defined(KSU_KPROBES_HOOK) || !defined(CONFIG_KSU_SUSFS)
++#if defined(KSU_KPROBES_HOOK) && !defined(CONFIG_KSU_SUSFS)
  	unregister_kprobe(&reboot_kp);
 -#endif
 +#else
@@ -1389,12 +1382,12 @@ index ece8829d..0cb759ae 100644
  
  // IOCTL dispatcher
 diff --git a/kernel/syscall_hook_manager.c b/kernel/syscall_hook_manager.c
-index b107bc29..c8e06d35 100644
+index b107bc29..0caed08d 100644
 --- a/kernel/syscall_hook_manager.c
 +++ b/kernel/syscall_hook_manager.c
 @@ -1,4 +1,4 @@
 -#ifdef KSU_KPROBES_HOOK
-+#if defined(KSU_KPROBES_HOOK) || !defined(CONFIG_KSU_SUSFS)
++#if defined(KSU_KPROBES_HOOK) && !defined(CONFIG_KSU_SUSFS)
  #include "linux/compiler.h"
  #include "linux/cred.h"
  #include "linux/printk.h"
@@ -1403,7 +1396,7 @@ index b107bc29..c8e06d35 100644
  	ksu_avc_spoof_exit();
  }
 -#else
-+#else // #if defined(KSU_KPROBES_HOOK) || !defined(CONFIG_KSU_SUSFS)
++#else // #if defined(KSU_KPROBES_HOOK) && !defined(CONFIG_KSU_SUSFS)
 +
  #include "klog.h" // IWYU pragma: keep
  #include "syscall_hook_manager.h"
