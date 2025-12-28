@@ -89,6 +89,7 @@ struct st_susfs_sus_kstat_hlist {
 struct st_susfs_try_umount {
 	char                    target_pathname[SUSFS_MAX_LEN_PATHNAME];
 	int                     mnt_mode;
+	int                     err;
 };
 
 struct st_susfs_try_umount_list {
@@ -196,7 +197,7 @@ void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned 
 
 /* try_umount */
 #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
-int susfs_add_try_umount(struct st_susfs_try_umount* __user user_info);
+void susfs_add_try_umount(void __user **user_info);
 void susfs_try_umount(uid_t target_uid);
 #endif
 
