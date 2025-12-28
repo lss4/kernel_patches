@@ -1,0 +1,13 @@
+diff --git a/kernel/lsm_hooks.c b/kernel/lsm_hooks.c
+index 62de1bdb..24f2fcbc 100644
+--- a/kernel/lsm_hooks.c
++++ b/kernel/lsm_hooks.c
+@@ -10,8 +10,6 @@
+ #include "setuid_hook.h"
+ #include "throne_tracker.h"
+ 
+-#ifndef KSU_KPROBES_HOOK
+-
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) ||                           \
+ 	defined(CONFIG_IS_HW_HISI)
+ static int ksu_key_permission(key_ref_t key_ref, const struct cred *cred,
