@@ -194,6 +194,12 @@ void susfs_sus_ino_for_generic_fillattr(unsigned long ino, struct kstat *stat);
 void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned long *out_ino);
 #endif
 
+/* try_umount */
+#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
+int susfs_add_try_umount(struct st_susfs_try_umount* __user user_info);
+void susfs_try_umount(uid_t target_uid);
+#endif
+
 /* spoof_uname */
 #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
 void susfs_set_uname(void __user **user_info);
