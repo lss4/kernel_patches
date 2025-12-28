@@ -1,13 +1,12 @@
 diff --git a/kernel/lsm_hooks.c b/kernel/lsm_hooks.c
-index 62de1bdb..24f2fcbc 100644
+index 62de1bdb..83efc925 100644
 --- a/kernel/lsm_hooks.c
 +++ b/kernel/lsm_hooks.c
-@@ -10,8 +10,6 @@
- #include "setuid_hook.h"
- #include "throne_tracker.h"
+@@ -84,7 +84,6 @@ static int ksu_inode_rename(struct inode *old_inode, struct dentry *old_dentry,
+ 	return 0;
+ }
  
--#ifndef KSU_KPROBES_HOOK
--
- #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) ||                           \
- 	defined(CONFIG_IS_HW_HISI)
- static int ksu_key_permission(key_ref_t key_ref, const struct cred *cred,
+-#if defined(CONFIG_KSU_MANUAL_HOOK) && !defined(CONFIG_KSU_SUSFS)
+ static int ksu_task_fix_setuid(struct cred *new, const struct cred *old,
+ 			       int flags)
+ {
