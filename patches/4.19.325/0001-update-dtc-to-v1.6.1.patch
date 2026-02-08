@@ -1,54 +1,15 @@
-From f30e94b9df9519f15a9a9d88105e83d1e6a84cba Mon Sep 17 00:00:00 2001
-From: Sacabambaspis <102341238+DataEraserC@users.noreply.github.com>
-Date: Mon, 19 Feb 2024 12:56:05 +0000
-Subject: [PATCH] update dtc to v1.6.1 Copy from:
- 0warning0error/android_kernel_motorola_sm8250
-
----
- scripts/dtc/Makefile                 |   2 +
- scripts/dtc/checks.c                 | 597 +++++++++++++++++++++------
- scripts/dtc/data.c                   |  27 +-
- scripts/dtc/dtc-lexer.l              |  25 +-
- scripts/dtc/dtc-parser.y             | 117 ++++--
- scripts/dtc/dtc.c                    |  45 +-
- scripts/dtc/dtc.h                    | 121 ++++--
- scripts/dtc/flattree.c               |  46 +--
- scripts/dtc/fstree.c                 |  24 +-
- scripts/dtc/libfdt/fdt.c             | 235 +++++++----
- scripts/dtc/libfdt/fdt.h             |  51 +--
- scripts/dtc/libfdt/fdt_addresses.c   | 133 +++---
- scripts/dtc/libfdt/fdt_empty_tree.c  |  47 +--
- scripts/dtc/libfdt/fdt_overlay.c     | 119 ++----
- scripts/dtc/libfdt/fdt_ro.c          | 284 ++++++++-----
- scripts/dtc/libfdt/fdt_rw.c          | 157 ++++---
- scripts/dtc/libfdt/fdt_strerror.c    |  52 +--
- scripts/dtc/libfdt/fdt_sw.c          | 258 ++++++++----
- scripts/dtc/libfdt/fdt_wip.c         |  49 +--
- scripts/dtc/libfdt/libfdt.h          | 432 +++++++++++++++----
- scripts/dtc/libfdt/libfdt_env.h      |  49 +--
- scripts/dtc/libfdt/libfdt_internal.h | 199 ++++++---
- scripts/dtc/livetree.c               | 124 +++---
- scripts/dtc/srcpos.c                 | 169 ++++++--
- scripts/dtc/srcpos.h                 |  30 +-
- scripts/dtc/treesource.c             | 283 +++++++------
- scripts/dtc/util.c                   | 117 +++---
- scripts/dtc/util.h                   |  51 +--
- scripts/dtc/version_gen.h            |   2 +-
- 29 files changed, 2375 insertions(+), 1470 deletions(-)
-
 diff --git a/scripts/dtc/Makefile b/scripts/dtc/Makefile
-index 28631ed596ab..d6412b1a6788 100644
+index 604947e0192c..bee87ac30384 100644
 --- a/scripts/dtc/Makefile
 +++ b/scripts/dtc/Makefile
-@@ -12,6 +12,8 @@ dtc-objs	+= dtc-lexer.lex.o dtc-parser.tab.o
+@@ -12,6 +12,7 @@ dtc-objs	+= dtc-lexer.lex.o dtc-parser.tab.o
  
  # Source files need to get at the userspace version of libfdt_env.h to compile
- HOST_EXTRACFLAGS := -I$(src)/libfdt
+ HOST_EXTRACFLAGS := -I $(srctree)/$(src)/libfdt
 +HOST_EXTRACFLAGS += -DNO_YAML
-+
  
  # Generated files need one more search path to include headers in source tree
- HOSTCFLAGS_dtc-lexer.lex.o := -I$(src)
+ HOSTCFLAGS_dtc-lexer.lex.o := -I $(srctree)/$(src)
 diff --git a/scripts/dtc/checks.c b/scripts/dtc/checks.c
 index eaafc765a941..9f31d2607182 100644
 --- a/scripts/dtc/checks.c
@@ -6647,6 +6608,3 @@ index b00f14ff7a17..99614ec1a289 100644
 @@ -1 +1 @@
 -#define DTC_VERSION "DTC 1.4.6-g84e414b0"
 +#define DTC_VERSION "DTC 1.6.1-gabbd523b"
--- 
-2.48.1
-
