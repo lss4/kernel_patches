@@ -24,3 +24,15 @@ index 702c4761006c..be21ff35be3b 100644
  		ath6kl_wmi_listeninterval_cmd(ar->wmi, vif->fw_vif_idx,
  					      vif->listen_intvl_t, 0);
  		ath6kl_check_ch_switch(ar, channel);
+diff --git a/include/linux/timer.h b/include/linux/timer.h
+index 50d5cf44f64e..99a896475bc4 100644
+--- a/include/linux/timer.h
++++ b/include/linux/timer.h
+@@ -187,6 +187,7 @@ extern struct timer_base timer_base_deferrable;
+ extern int del_timer_sync(struct timer_list *timer);
+ 
+ #define del_singleshot_timer_sync(t) del_timer_sync(t)
++#define timer_delete_sync(t) del_timer_sync(t)
+ 
+ extern void init_timers(void);
+ extern void run_local_timers(void);
